@@ -1,13 +1,14 @@
 /* eslint-disable react/jsx-filename-extension */
 import React, { memo } from 'react'
 import { useRuntime } from 'vtex.render-runtime'
-import PropTypes from 'prop-types'
+// import PropTypes from 'prop-types'
 // eslint-disable-next-line no-restricted-imports
 import { pathOr, path, sort, last, flatten } from 'ramda'
 import { jsonLdScriptProps } from 'react-schemaorg'
 
 import useAppSettings from './hooks/useAppSettings'
 import { getBaseUrl } from './modules/baseUrl'
+import { useProduct } from "vtex.product-context";
 
 const getSpotPrice = path(['commertialOffer', 'spotPrice'])
 const getPrice = path(['commertialOffer', 'Price'])
@@ -17,9 +18,9 @@ const getAvailableQuantity = pathOr(0, ['commertialOffer', 'AvailableQuantity'])
 const getFinalPrice = (value, getPriceFunc, { decimals, pricesWithTax }) => {
   return pricesWithTax
     ? Math.round(
-        (getPriceFunc(value) + getTax(value) + Number.EPSILON) * 10 ** decimals
-      ) /
-        10 ** decimals
+      (getPriceFunc(value) + getTax(value) + Number.EPSILON) * 10 ** decimals
+    ) /
+    10 ** decimals
     : getPriceFunc(value)
 }
 
@@ -119,6 +120,10 @@ const composeAggregateOffer = (
   const items = product.items || []
   const allSellers = getAllSellers(items)
   const { low, high } = lowHighForSellers(allSellers, { pricesWithTax })
+  const priceOnRequest = product?.properties?.find((property) => {
+    return property.name === "Botão Preço Sob Consulta na Vitrine"
+  });
+  const isPriceRequestTrue = priceOnRequest?.values[0] === "Ligado" ? true : false;
 
   const offersList = items
     .map((element) =>
@@ -126,7 +131,7 @@ const composeAggregateOffer = (
         decimals,
         pricesWithTax,
         useSellerDefault,
-      })
+      }, isPriceRequestTrue)
     )
     .filter(Boolean)
 
@@ -136,8 +141,8 @@ const composeAggregateOffer = (
 
   const aggregateOffer = {
     '@type': 'AggregateOffer',
-    lowPrice: getFinalPrice(low, getSpotPrice, { decimals, pricesWithTax }),
-    highPrice: getFinalPrice(high, getPrice, { decimals, pricesWithTax }),
+    lowPrice: isPriceRequestTrue ? "" : getFinalPrice(low, getSpotPrice, { decimals, pricesWithTax }),
+    highPrice: isPriceRequestTrue ? "" : getFinalPrice(high, getPrice, { decimals, pricesWithTax }),
     priceCurrency: currency,
     offers: offersList,
     offerCount: items.length,
@@ -201,6 +206,8 @@ export const parseToJsonLD = ({
 }
 
 function StructuredData({ product, selectedItem }) {
+  const { product, selectedItem } = useProduct();
+
   const {
     culture: { currency },
   } = useRuntime()
@@ -225,9 +232,9 @@ function StructuredData({ product, selectedItem }) {
   return <script {...jsonLdScriptProps(productLD)} />
 }
 
-StructuredData.propTypes = {
-  product: PropTypes.object,
-  selectedItem: PropTypes.object,
-}
+// StructuredData.propTypes = {
+//   product: PropTypes.object,
+//   selectedItem: PropTypes.object,
+// }
 
 export default memo(StructuredData)
