@@ -205,7 +205,7 @@ export const parseToJsonLD = ({
   return productLD
 }
 
-function StructuredData({ product, selectedItem }) {
+function StructuredData() {
   const { product, selectedItem } = useProduct();
 
   const {
